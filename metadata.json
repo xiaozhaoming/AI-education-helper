@@ -1,0 +1,6 @@
+{
+  "name": "AI 家庭学习系统",
+  "description": "围绕孩子长期成长的个人 AI 学习系统：打通纸笔练习、批改诊断、飞书学情档案、Obsidian 知识库与孩子端成长中心。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
