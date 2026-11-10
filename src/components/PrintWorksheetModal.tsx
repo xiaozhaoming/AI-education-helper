@@ -32,11 +32,15 @@ export const PrintWorksheetModal: React.FC<PrintWorksheetModalProps> = ({
   const [previewQuestions, setPreviewQuestions] = useState<PreviewQuestion[]>(
     material.questions
   );
+  const [activeWorksheetId, setActiveWorksheetId] = useState<string>(material.worksheetId);
   const [isGenerating, setIsGenerating] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isOpen) setPreviewQuestions(material.questions);
+    if (isOpen) {
+      setPreviewQuestions(material.questions);
+      setActiveWorksheetId(material.worksheetId);   // 重开弹窗回到原卷
+    }
   }, [isOpen, material.questions]);
 
   useEffect(() => {
@@ -88,8 +92,9 @@ export const PrintWorksheetModal: React.FC<PrintWorksheetModalProps> = ({
           points: 1
         };
       }));
+      if (data.worksheet_id) setActiveWorksheetId(String(data.worksheet_id));
       setActiveTab('worksheet');
-      setToastMessage(`已换一批题 · seed ${data.seed}`);
+      setToastMessage(`已换一批题 · seed ${data.seed}${data.worksheet_id ? '' : '（卷号未返回）'}`);
     } catch (e) {
       setToastMessage((e as Error).message || '换题失败');
     } finally {
@@ -197,7 +202,7 @@ export const PrintWorksheetModal: React.FC<PrintWorksheetModalProps> = ({
                     dangerouslySetInnerHTML={{ __html: qrSvgHtml }}
                   />
                   <div className="text-[9px] font-mono font-bold text-ink-2 mt-1">
-                    {material.worksheetId}
+                    {activeWorksheetId}
                   </div>
                   <div className="text-[8px] text-ink-3">Page 1 / 1</div>
                 </div>
@@ -326,7 +331,7 @@ export const PrintWorksheetModal: React.FC<PrintWorksheetModalProps> = ({
                     {material.title} · 标准答案与评分点
                   </h2>
                   <div className="text-xs text-ink-3">
-                    练习编号：{material.worksheetId} · 满分 100 分 · 对应成长积分 {material.totalRewardPoints} 分
+                    练习编号：{activeWorksheetId} · 满分 100 分 · 对应成长积分 {material.totalRewardPoints} 分
                   </div>
                 </div>
                 <div className="px-3 py-1.5 rounded-lg bg-ok-bg text-ok text-xs font-semibold flex items-center gap-1.5 border border-ok-line">
@@ -349,7 +354,11 @@ export const PrintWorksheetModal: React.FC<PrintWorksheetModalProps> = ({
                   <div className="grid grid-cols-4 gap-2 font-mono">
                     {speedQuestions.map(q => (
                       <div key={q.questionId} className="p-2 bg-surface-2 rounded border">
-                        {q.numA} + {q.numB} = <strong className="text-ok">{q.standardAnswer}</strong>
+                        {q.type === 'fill_blank' ? (
+                          <> {q.numA} + □ = {q.numA + (q.numB ?? 0)} <strong className="text-ok">→ {q.standardAnswer}</strong> </>
+                        ) : (
+                          <> {q.numA} + {q.numB} = <strong className="text-ok">{q.standardAnswer}</strong> </>
+                        )}
                       </div>
                     ))}
                   </div>
