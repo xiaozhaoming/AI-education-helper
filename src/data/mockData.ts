@@ -23,7 +23,7 @@ export const INITIAL_POINT_TRANSACTIONS: PointTransaction[] = [
     type: 'earned',
     amount: 38,
     title: '完成数学综合练习卷',
-    reason: '按计划完成 24 道 20 以内进位加法综合题，准确率高',
+    reason: '按计划完成 20 道 20 以内进位加法综合题，准确率高',
     balanceAfter: 125
   },
   {
@@ -76,7 +76,7 @@ export const INITIAL_LEARNING_TASK: LearningTask = {
   status: 'pending_print',
   assignedDate: '2026-11-09',
   estimatedMinutes: 15,
-  recommendReason: 'Hermes 结合星图学情：嘟嘟已熟练掌握 10 以内加法，当前处于 20 以内进位加法巩固期，按教学大纲规划 24 题综合测试卷（含口算、比大小、凑十拆数与应用题）。',
+  recommendReason: 'Hermes 结合星图学情：嘟嘟已熟练掌握 10 以内加法，当前处于 20 以内进位加法巩固期，按教学大纲规划 20 题综合测试卷（含口算、比大小、凑十拆数与应用题）。',
   defaultRewardPoints: 38,
   customRewardPoints: 38,
   material: createWorksheetMaterial('TASK-20261109-001', 'CHILD_001', undefined, '小学一年级数学：20以内进位加法综合练习卷')
