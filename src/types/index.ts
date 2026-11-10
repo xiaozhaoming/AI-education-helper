@@ -6,12 +6,16 @@
 export type Subject = 'Math' | 'English' | 'Chinese';
 export type GradeLevel = 'G1' | 'G2' | 'G3';
 
-export type UIStyleTheme = 
-  | 'playful_warm'       // 风格 1：温暖童趣绘本风（自然护眼、亲和力强）
-  | 'modern_editorial'   // 风格 2：现代极简工坊风（北欧克制、印刷品本源）
-  | 'cosmic_explorer';   // 风格 3：太空探索空间站（趣味任务、科技充能感）
+/**
+ * 界面只有一种设计语言：现代极简工坊（Modern Editorial）。
+ * 皮肤维度改为明暗两档，不再有多套配色主题。
+ */
+export type UIStyleTheme = 'modern_editorial';
 
 export type UIThemeStyle = UIStyleTheme;
+
+/** 皮肤：白天（纸墨本源）／黑夜（夜工坊） */
+export type ColorScheme = 'light' | 'dark';
 
 export type TaskStatus = 
   | 'pending_print'    // 待打印
@@ -158,4 +162,15 @@ export interface CustomTaskRequest {
   paperType: 'standard_comprehensive' | 'speed_calculation' | 'concept_split';
   difficulty: 'normal' | 'advanced' | 'challenge';
   pointsMultiplier: number;
+}
+
+export type GradeValue = 'G1' | 'G2' | 'G3' | 'G4' | 'G5' | 'G6';
+export type SubjectValue = 'Math' | 'Chinese' | 'English';
+
+export interface OptionItem { value: string; label: string }
+export interface OptionsResponse {
+  ok: boolean;
+  grades: OptionItem[];
+  subjects: OptionItem[];
+  current: { grade: string; subject: string };
 }

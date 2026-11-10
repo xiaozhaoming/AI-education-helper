@@ -12,14 +12,15 @@ import { MasteryMapView } from './components/MasteryMapView';
 import { PointsLedgerView } from './components/PointsLedgerView';
 import { CustomTaskModal } from './components/CustomTaskModal';
 import { HermesDevModal } from './components/HermesDevModal';
-import { StyleShowcaseModal } from './components/StyleShowcaseModal';
 import { apiClient, HermesConnectionConfig } from './services/apiClient';
-import { ChildProfile, LearningTask, KnowledgePointNode, PointTransaction, CustomTaskRequest, UIStyleTheme } from './types';
+import { ChildProfile, LearningTask, KnowledgePointNode, PointTransaction, CustomTaskRequest, ColorScheme } from './types';
 
 export default function App() {
-  const [activeTheme, setActiveTheme] = useState<UIStyleTheme>(() => {
-    const saved = localStorage.getItem('dudu_ui_theme') as UIStyleTheme;
-    return saved === 'modern_editorial' || saved === 'cosmic_explorer' ? saved : 'playful_warm';
+  const [colorScheme, setColorScheme] = useState<ColorScheme>(() => {
+    const saved = localStorage.getItem('dudu_color_scheme') as ColorScheme | null;
+    if (saved === 'light' || saved === 'dark') return saved;
+    // 没存过就跟随系统
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
   const [currentTab, setCurrentTab] = useState<NavTab>('task');
   const [profile, setProfile] = useState<ChildProfile | null>(null);
@@ -29,35 +30,112 @@ export default function App() {
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
   const [isDevModalOpen, setIsDevModalOpen] = useState(false);
-  const [isStyleModalOpen, setIsStyleModalOpen] = useState(false);
   const [config, setConfig] = useState<HermesConnectionConfig>(apiClient.getConfig());
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [grade, setGrade] = useState<string>(() => localStorage.getItem('dudu_grade') || 'G1');
+  const [subject, setSubject] = useState<string>(() => localStorage.getItem('dudu_subject') || 'Math');
 
-  const handleSelectTheme = (theme: UIStyleTheme) => {
-    setActiveTheme(theme);
-    localStorage.setItem('dudu_ui_theme', theme);
-    showToast(`🎨 已切换为：${theme === 'playful_warm' ? '温暖童趣绘本风' : theme === 'modern_editorial' ? '现代极简工坊风' : '太空探索空间站'}`);
+  // 皮肤落到 <html class="dark">，CSS 变量随之翻转
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle('dark', colorScheme === 'dark');
+    localStorage.setItem('dudu_color_scheme', colorScheme);
+  }, [colorScheme]);
+
+  const handleToggleColorScheme = () => {
+    setColorScheme(prev => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      root_toggle_hint(next);
+      return next;
+    });
+  };
+
+  /** 只负责提示，类名与持久化由上面的 effect 统一处理 */
+  const root_toggle_hint = (next: ColorScheme) => {
+    showToast(next === 'dark' ? '🌙 已切换：夜工坊（深墨蓝）' : '☀️ 已切换：纸墨本源（印刷暖白）');
   };
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+    setTimeout(() => setToastMessage(null), 5000);
   };
 
-  const refreshData = async () => {
-    const p = await apiClient.getChildProfile();
-    const t = await apiClient.getTodayTask();
-    const kp = await apiClient.getKnowledgePoints();
-    const tx = await apiClient.getPointTransactions();
-    setProfile(p);
-    setTask(t);
-    setKnowledgePoints(kp);
-    setTransactions(tx);
+  /** 统一读取；Hermes 模式下失败必须暴露，不许静默用假数据 */
+  const refreshData = async (nextGrade?: string, nextSubject?: string) => {
+    const gradeToUse = nextGrade ?? grade;
+    const subjectToUse = nextSubject ?? subject;
+    try {
+      const p = await apiClient.getChildProfile();
+      const t = await apiClient.getTodayTask();
+      const kp = await apiClient.getKnowledgePoints(`?grade=${gradeToUse}&subject=${subjectToUse}`);
+      const tx = await apiClient.getPointTransactions();
+      setProfile(p);
+      setTask(t);
+      setKnowledgePoints(kp);
+      setTransactions(tx);
+      setLoadError(null);
+      return { ok: true as const };
+    } catch (e) {
+      const msg = (e as Error).message || '未知错误';
+      setLoadError(msg);
+      // 不保留旧的假数据：清空，让 UI 如实显示不可用
+      setProfile(null);
+      setTask(null);
+      setKnowledgePoints([]);
+      setTransactions([]);
+      return { ok: false as const, error: msg };
+    }
   };
 
+  const handleFilterChange = (nextGrade: string, nextSubject: string) => {
+    localStorage.setItem('dudu_grade', nextGrade);
+    localStorage.setItem('dudu_subject', nextSubject);
+    setGrade(nextGrade);
+    setSubject(nextSubject);
+    refreshData(nextGrade, nextSubject);
+  };
+
+  // 首次载入：若后端可达则自动切到本地模式（真实数据优先）
   useEffect(() => {
-    refreshData();
+    (async () => {
+      const cfg = apiClient.getConfig();
+      if (cfg.mode !== 'hermes_local') {
+        try {
+          const base = cfg.hermesBaseUrl.replace(/\/$/, '');
+          const res = await fetch(`${base}/api/health`, { signal: AbortSignal.timeout(5000) });
+          const j = await res.json();
+          if (res.ok && j?.ok) {
+            apiClient.updateConfig({ mode: 'hermes_local' });
+            setConfig(apiClient.getConfig());
+            showToast('🔗 已检测到本地 Hermes 服务，自动切换为真实数据模式');
+          }
+        } catch {
+          // 后端没起来：保持沙箱，但明确告知
+          showToast('⚠️ 未检测到 http://localhost:8000，当前为沙箱演示数据');
+        }
+      }
+      await refreshData();
+    })();
   }, []);
+
+  const handleRealUpload = async (file: File) => {
+    try {
+      const { task: updated, backend } = await apiClient.submitPhotoReal(file);
+      setTask(updated);
+      await refreshData();
+      const s = backend?.graded?.summary;
+      const mastery = backend?.mastery;
+      showToast(
+        `📸 已识别 ${s?.recognized ?? 0} 题：正确 ${s?.correct ?? 0}、错误 ${s?.wrong ?? 0}、` +
+        `待核对 ${s?.gated ?? 0}。掌握度：${mastery?.state ?? '未更新'}`
+      );
+      setCurrentTab('review');
+    } catch (e) {
+      showToast(`❌ 上传失败：${(e as Error).message}`);
+      await refreshData();
+    }
+  };
 
   const handleSimulateUpload = async (mode: 'perfect' | 'low_confidence' | 'error') => {
     const updatedTask = await apiClient.submitPhotoSimulation({
@@ -94,7 +172,7 @@ export default function App() {
     const newTask = await apiClient.generatePlanTask();
     setTask(newTask);
     await refreshData();
-    showToast('📅 已根据星图教学大纲重新生成今日 24 题综合计划卷！');
+    showToast('📅 已根据星图教学大纲重新生成今日综合计划卷！');
   };
 
   const handleGenerateCustomTask = async (req: CustomTaskRequest) => {
@@ -127,7 +205,7 @@ export default function App() {
       const updated = await apiClient.markTaskInProgress();
       setTask(updated);
     }
-    showToast('🖨️ 系统打印已触发！请交由嘟嘟脱离屏幕用铅笔独立作答。');
+    showToast(`🖨️ 系统打印已触发！请交由${profile?.name || '孩子'}脱离屏幕用铅笔独立作答。`);
   };
 
   const handleUpdateConfig = (newCfg: Partial<HermesConnectionConfig>) => {
@@ -144,27 +222,48 @@ export default function App() {
 
   if (!profile || !task) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400 text-sm">
-        加载学习中心中...
+      <div className="min-h-screen bg-surface-2 flex flex-col items-center justify-center px-6 text-center gap-4">
+        {loadError ? (
+          <>
+            <div className="text-3xl">🔌</div>
+            <div className="text-ink font-bold text-base">无法连接本地 Hermes 服务</div>
+            <div className="text-ink-3 text-xs max-w-xl leading-relaxed font-mono break-all">
+              {loadError}
+            </div>
+            <div className="text-ink-3 text-xs max-w-xl leading-relaxed">
+              请确认后端已启动：<span className="font-mono">cd AI家庭学习系统/app &amp;&amp; .venv/bin/python3.12 server.py</span>
+              <br />
+              当前后端地址：<span className="font-mono">{config.hermesBaseUrl}</span>
+            </div>
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={() => refreshData()}
+                className="px-4 py-2 rounded-xl bg-surface-3 text-ink text-xs font-semibold hover:bg-surface-3"
+              >
+                重试
+              </button>
+              <button
+                onClick={() => {
+                  apiClient.updateConfig({ mode: 'mock' });
+                  setConfig(apiClient.getConfig());
+                  setLoadError(null);
+                  refreshData();
+                }}
+                className="px-4 py-2 rounded-xl bg-surface border border-line-strong text-ink-2 text-xs font-semibold hover:bg-surface-3"
+              >
+                改用沙箱演示数据
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="text-ink-3 text-sm">加载学习中心中...</div>
+        )}
       </div>
     );
   }
 
-  const getAppBgClass = () => {
-    switch (activeTheme) {
-      case 'modern_editorial':
-        return 'min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col selection:bg-slate-300';
-      case 'cosmic_explorer':
-        return 'min-h-screen bg-[#070e1b] text-slate-100 font-sans flex flex-col selection:bg-sky-500 selection:text-white';
-      default:
-        return 'min-h-screen bg-[#FFFDF7] text-slate-900 font-sans flex flex-col selection:bg-amber-200';
-    }
-  };
-
-  const isCosmic = activeTheme === 'cosmic_explorer';
-
   return (
-    <div className={getAppBgClass()}>
+    <div className="min-h-screen bg-canvas text-ink font-sans flex flex-col selection:bg-accent-soft selection:text-ink">
       {/* 顶部主导航栏 */}
       <TopNavBar
         currentTab={currentTab}
@@ -172,10 +271,11 @@ export default function App() {
         profile={profile}
         taskStatus={task.status}
         onOpenDevModal={() => setIsDevModalOpen(true)}
-        onOpenStyleModal={() => setIsStyleModalOpen(true)}
-        hermesMode={config.mode}
-        activeTheme={activeTheme}
-        onSelectTheme={handleSelectTheme}
+        colorScheme={colorScheme}
+        onToggleColorScheme={handleToggleColorScheme}
+        grade={grade}
+        subject={subject}
+        onFilterChange={handleFilterChange}
       />
 
       {/* 主视图区域（大屏与笔记本双端高利用率） */}
@@ -184,10 +284,11 @@ export default function App() {
           <DailyTaskView
             profile={profile}
             task={task}
-            activeTheme={activeTheme}
             onOpenPrintModal={() => setIsPrintModalOpen(true)}
             onGoToReview={() => setCurrentTab('review')}
             onSimulateUpload={handleSimulateUpload}
+            onRealUpload={handleRealUpload}
+            isHermesMode={config.mode === 'hermes_local'}
             onGeneratePlanTask={handleGeneratePlanTask}
             onOpenCustomModal={() => setIsCustomModalOpen(true)}
             onUpdateRewardPoints={handleUpdateRewardPoints}
@@ -203,14 +304,13 @@ export default function App() {
         )}
 
         {currentTab === 'map' && (
-          <MasteryMapView knowledgePoints={knowledgePoints} />
+          <MasteryMapView knowledgePoints={knowledgePoints} childName={profile?.name} />
         )}
 
         {currentTab === 'points' && (
           <PointsLedgerView
             profile={profile}
             transactions={transactions}
-            activeTheme={activeTheme}
             onSpendPoints={handleSpendPoints}
             onAddPoints={handleAddPoints}
           />
@@ -218,9 +318,7 @@ export default function App() {
       </main>
 
       {/* 底部轻量页脚 */}
-      <footer className={`border-t py-4 text-center text-xs transition-colors ${
-        isCosmic ? 'border-slate-800 bg-slate-950 text-slate-500' : 'border-slate-200/60 bg-white text-slate-400'
-      }`}>
+      <footer className="border-t border-line bg-surface py-4 text-center text-xs text-ink-3 transition-colors no-print">
         AI 家庭学习系统 · 数字系统负责诊断规划 · 现实世界专注纸笔手写思考与奖励兑换
       </footer>
 
@@ -240,13 +338,6 @@ export default function App() {
         onGenerateCustom={handleGenerateCustomTask}
       />
 
-      {/* 3 款 UI 风格设计展示与挑选模态窗口 */}
-      <StyleShowcaseModal
-        isOpen={isStyleModalOpen}
-        onClose={() => setIsStyleModalOpen(false)}
-        currentTheme={activeTheme}
-        onSelectTheme={handleSelectTheme}
-      />
 
       {/* Hermes 配置与移交说明模态窗口 */}
       <HermesDevModal
@@ -259,7 +350,7 @@ export default function App() {
 
       {/* 浮动轻量通知 */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-5 py-3.5 rounded-2xl shadow-xl text-xs font-medium flex items-center gap-2 max-w-md animate-fade-in border border-slate-800">
+        <div className="fixed bottom-6 right-6 z-50 bg-surface text-ink px-5 py-3.5 rounded-lg shadow-xl text-xs font-medium flex items-center gap-2 max-w-md animate-fade-in border border-line">
           <span>{toastMessage}</span>
         </div>
       )}

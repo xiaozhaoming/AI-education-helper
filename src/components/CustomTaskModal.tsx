@@ -18,7 +18,7 @@ export const CustomTaskModal: React.FC<CustomTaskModalProps> = ({
   onClose,
   onGenerateCustom
 }) => {
-  const [title, setTitle] = useState('嘟嘟数学定制特训：20以内进位加法攻坚卷');
+  const [title, setTitle] = useState('数学定制特训：20以内进位加法攻坚卷');
   const [paperType, setPaperType] = useState<'standard_comprehensive' | 'speed_calculation' | 'concept_split'>('standard_comprehensive');
   const [difficulty, setDifficulty] = useState<'normal' | 'advanced' | 'challenge'>('normal');
   const [pointsMultiplier, setPointsMultiplier] = useState(1.0);
@@ -54,41 +54,41 @@ export const CustomTaskModal: React.FC<CustomTaskModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-      <div className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--c-overlay)] backdrop-blur-xs overflow-y-auto">
+      <div className="relative w-full max-w-xl bg-surface rounded-xl shadow-2xl border border-line overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50 shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-line bg-surface-2 shrink-0">
           <div className="flex items-center gap-2">
-            <Sliders className="w-5 h-5 text-amber-500" />
-            <h2 className="font-bold text-slate-900 text-base">
+            <Sliders className="w-5 h-5 text-warn" />
+            <h2 className="font-bold text-ink text-base">
               按需定制生成练习卷（临时需求）
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors"
+            className="p-1.5 rounded-xl text-ink-3 hover:text-ink-2 hover:bg-surface-3 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-5 text-xs text-slate-700">
+        <div className="p-6 space-y-5 text-xs text-ink-2">
           {/* 试卷标题 */}
           <div className="space-y-1.5">
-            <label className="font-semibold text-slate-900 text-xs">试卷标题</label>
+            <label className="font-semibold text-ink text-xs">试卷标题</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
-              placeholder="请输入试卷标题，例如：嘟嘟周末专项口算冲刺卷"
+              className="w-full px-3.5 py-2.5 bg-surface-2 border border-line rounded-xl text-xs font-medium focus:ring-2 focus:ring-warn focus:bg-surface transition-all"
+              placeholder="请输入试卷标题，例如：周末专项口算冲刺卷"
             />
           </div>
 
           {/* 试卷类型选择 */}
           <div className="space-y-1.5">
-            <label className="font-semibold text-slate-900 text-xs">试卷结构与排版类型</label>
+            <label className="font-semibold text-ink text-xs">试卷结构与排版类型</label>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <button
                 type="button"
@@ -96,17 +96,17 @@ export const CustomTaskModal: React.FC<CustomTaskModalProps> = ({
                   setPaperType('standard_comprehensive');
                   setTitle('小学一年级数学：20以内进位加法综合练习卷');
                 }}
-                className={`p-3 rounded-2xl border text-left transition-all ${
+                className={`p-3 rounded-lg border text-left transition-all ${
                   paperType === 'standard_comprehensive'
-                    ? 'bg-amber-50/80 border-amber-500 ring-2 ring-amber-500/20 text-slate-900'
-                    : 'bg-slate-50/50 border-slate-200 text-slate-600 hover:bg-slate-50'
+                    ? 'bg-warn-bg/80 border-warn-line ring-2 ring-warn/20 text-ink'
+                    : 'bg-surface-2 border-line text-ink-2 hover:bg-surface-2'
                 }`}
               >
                 <div className="font-bold text-xs flex items-center justify-between">
                   <span>综合练习卷</span>
-                  {paperType === 'standard_comprehensive' && <CheckCircle2 className="w-4 h-4 text-amber-600" />}
+                  {paperType === 'standard_comprehensive' && <CheckCircle2 className="w-4 h-4 text-warn" />}
                 </div>
-                <div className="text-[11px] text-slate-500 mt-1">
+                <div className="text-[12px] text-ink-3 mt-1">
                   24题 · 口算+比大小+凑十拆数+应用题 (推荐)
                 </div>
               </button>
@@ -117,17 +117,17 @@ export const CustomTaskModal: React.FC<CustomTaskModalProps> = ({
                   setPaperType('speed_calculation');
                   setTitle('小学一年级数学：20以内进位加法口算冲刺卡');
                 }}
-                className={`p-3 rounded-2xl border text-left transition-all ${
+                className={`p-3 rounded-lg border text-left transition-all ${
                   paperType === 'speed_calculation'
-                    ? 'bg-amber-50/80 border-amber-500 ring-2 ring-amber-500/20 text-slate-900'
-                    : 'bg-slate-50/50 border-slate-200 text-slate-600 hover:bg-slate-50'
+                    ? 'bg-warn-bg/80 border-warn-line ring-2 ring-warn/20 text-ink'
+                    : 'bg-surface-2 border-line text-ink-2 hover:bg-surface-2'
                 }`}
               >
                 <div className="font-bold text-xs flex items-center justify-between">
                   <span>口算冲刺卡</span>
-                  {paperType === 'speed_calculation' && <CheckCircle2 className="w-4 h-4 text-amber-600" />}
+                  {paperType === 'speed_calculation' && <CheckCircle2 className="w-4 h-4 text-warn" />}
                 </div>
-                <div className="text-[11px] text-slate-500 mt-1">
+                <div className="text-[12px] text-ink-3 mt-1">
                   32题 · 纯口算紧凑 4 列排版，练习计算速度
                 </div>
               </button>
@@ -138,17 +138,17 @@ export const CustomTaskModal: React.FC<CustomTaskModalProps> = ({
                   setPaperType('concept_split');
                   setTitle('小学一年级数学：凑十法拆数算理攻坚卷');
                 }}
-                className={`p-3 rounded-2xl border text-left transition-all ${
+                className={`p-3 rounded-lg border text-left transition-all ${
                   paperType === 'concept_split'
-                    ? 'bg-amber-50/80 border-amber-500 ring-2 ring-amber-500/20 text-slate-900'
-                    : 'bg-slate-50/50 border-slate-200 text-slate-600 hover:bg-slate-50'
+                    ? 'bg-warn-bg/80 border-warn-line ring-2 ring-warn/20 text-ink'
+                    : 'bg-surface-2 border-line text-ink-2 hover:bg-surface-2'
                 }`}
               >
                 <div className="font-bold text-xs flex items-center justify-between">
                   <span>拆数算理卷</span>
-                  {paperType === 'concept_split' && <CheckCircle2 className="w-4 h-4 text-amber-600" />}
+                  {paperType === 'concept_split' && <CheckCircle2 className="w-4 h-4 text-warn" />}
                 </div>
-                <div className="text-[11px] text-slate-500 mt-1">
+                <div className="text-[12px] text-ink-3 mt-1">
                   16题 · 强化大数想凑十、拆小数思维
                 </div>
               </button>
@@ -158,8 +158,8 @@ export const CustomTaskModal: React.FC<CustomTaskModalProps> = ({
           {/* 难度与积分倍率 */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="font-semibold text-slate-900 text-xs">难度系数</label>
-              <div className="flex rounded-xl bg-slate-100 p-1 border border-slate-200">
+              <label className="font-semibold text-ink text-xs">难度系数</label>
+              <div className="flex rounded-xl bg-surface-3 p-1 border border-line">
                 <button
                   type="button"
                   onClick={() => {
@@ -167,7 +167,7 @@ export const CustomTaskModal: React.FC<CustomTaskModalProps> = ({
                     setPointsMultiplier(1.0);
                   }}
                   className={`flex-1 py-1.5 rounded-lg text-center font-medium transition-colors ${
-                    difficulty === 'normal' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
+                    difficulty === 'normal' ? 'bg-surface text-ink shadow-tok' : 'text-ink-2'
                   }`}
                 >
                   标准 (1.0x)
@@ -179,7 +179,7 @@ export const CustomTaskModal: React.FC<CustomTaskModalProps> = ({
                     setPointsMultiplier(1.2);
                   }}
                   className={`flex-1 py-1.5 rounded-lg text-center font-medium transition-colors ${
-                    difficulty === 'advanced' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
+                    difficulty === 'advanced' ? 'bg-surface text-ink shadow-tok' : 'text-ink-2'
                   }`}
                 >
                   进阶 (1.2x)
@@ -191,7 +191,7 @@ export const CustomTaskModal: React.FC<CustomTaskModalProps> = ({
                     setPointsMultiplier(1.5);
                   }}
                   className={`flex-1 py-1.5 rounded-lg text-center font-medium transition-colors ${
-                    difficulty === 'challenge' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
+                    difficulty === 'challenge' ? 'bg-surface text-ink shadow-tok' : 'text-ink-2'
                   }`}
                 >
                   高挑战 (1.5x)
@@ -200,34 +200,34 @@ export const CustomTaskModal: React.FC<CustomTaskModalProps> = ({
             </div>
 
             <div className="space-y-1.5">
-              <label className="font-semibold text-slate-900 text-xs">预估题量与奖励积分</label>
-              <div className="bg-amber-50/80 border border-amber-200/70 rounded-xl p-2.5 flex items-center justify-between">
+              <label className="font-semibold text-ink text-xs">预估题量与奖励积分</label>
+              <div className="bg-warn-bg/80 border border-warn-line rounded-xl p-2.5 flex items-center justify-between">
                 <div>
-                  <span className="font-bold text-slate-800 text-xs">{getEstQuestionCount()} 道题</span>
-                  <div className="text-[10px] text-slate-500">满分 100 分</div>
+                  <span className="font-bold text-ink text-xs">{getEstQuestionCount()} 道题</span>
+                  <div className="text-[12px] text-ink-3">满分 100 分</div>
                 </div>
                 <div className="text-right">
-                  <span className="font-bold text-amber-700 text-sm flex items-center gap-1">
+                  <span className="font-bold text-warn text-sm flex items-center gap-1">
                     <Coins className="w-3.5 h-3.5" />
                     +{getEstPoints()} 积分
                   </span>
-                  <div className="text-[10px] text-amber-600">难易题目阶梯赋分</div>
+                  <div className="text-[12px] text-warn">难易题目阶梯赋分</div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 text-[11px] text-slate-500 flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-slate-400 shrink-0" />
+          <div className="bg-surface-2 border border-line rounded-lg p-3 text-[12px] text-ink-3 flex items-center gap-2">
+            <BookOpen className="w-4 h-4 text-ink-3 shrink-0" />
             <span>生成后立即替换当前任务，并可直接在今日任务工作台中预览与打印 A4 练习纸。</span>
           </div>
 
           {/* Action buttons */}
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-3">
+          <div className="pt-3 border-t border-line flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-slate-600 hover:text-slate-800 font-medium"
+              className="px-4 py-2 text-ink-2 hover:text-ink font-medium"
             >
               取消
             </button>
@@ -235,7 +235,7 @@ export const CustomTaskModal: React.FC<CustomTaskModalProps> = ({
               type="button"
               disabled={isSubmitting}
               onClick={handleSubmit}
-              className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-xs transition-colors flex items-center gap-2"
+              className="px-5 py-2.5 rounded-xl bg-warn hover:bg-warn-line text-warn-on font-bold shadow-tok transition-colors flex items-center gap-2"
             >
               <Sparkles className="w-4 h-4" />
               <span>{isSubmitting ? '正在排版生成中...' : '立即生成定制练习卷'}</span>

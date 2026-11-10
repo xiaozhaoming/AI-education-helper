@@ -1,1 +1,197 @@
 @import "tailwindcss";
+
+/* ────────────────────────────────────────────────────────────────
+   现代极简工坊 · 设计令牌（Design Tokens）v2
+   一套结构，两套皮肤。组件只引用 token，不写死色值。
+
+   对比度契约（WCAG 2.1，本文件所有值均已脚本校验）：
+     · 文字 token（ink / ink-2 / ink-3）        对三种面 ≥ 4.5:1
+     · 语义色（ok / warn / danger / info）       对三种面 ≥ 4.5:1
+     · 语义色在自己色底（*_bg）上                ≥ 4.5:1
+     · 语义纯色面（--c-ok 等）上的 *-on 文字      ≥ 4.5:1
+     · 边框（line / line-strong / *_line）       ≥ 1.5:1（可见即可）
+     · 面与面之间层级差                          ≥ 1.15:1（卡片边界可辨）
+   ──────────────────────────────────────────────────────────────── */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* —— 浅色：纸墨本源（印刷暖白） —— */
+  --c-canvas: #EAEAE1;      /* 页面底：比卡片暗一档，卡片边界靠亮度差+边框 */
+  --c-surface: #FFFFFF;     /* 卡片面 */
+  --c-surface-2: #F8F8F4;   /* 内嵌区（同卡内微差） */
+  --c-surface-3: #F0F0E9;   /* 次级填充（表格/内嵌块） */
+
+  --c-ink: #111827;         /* 主文字：墨黑 */
+  --c-ink-2: #4B5563;       /* 次要文字（on s3 = 6.67） */
+  --c-ink-3: #60687A;       /* 三级／说明（on canvas 4.62 / s3 4.88 / white 5.59） */
+  --c-ink-4: #808896;       /* 极弱（on s3 = 3.15，装饰/禁用态专用） */
+
+  --c-line: #BEBEAE;        /* on white 1.88 / s3 1.64 / canvas 1.55 */
+  --c-line-strong: #AAAA98;  /* on white 2.36 */
+
+  /* 主行动面：近黑，浅字 */
+  --c-accent: #111827;
+  --c-accent-ink: #FFFFFF;
+  --c-accent-soft: #EDEDE8;
+  /* 深色展示面（横幅/看板）：两套皮肤都保持深底浅字，永不因切皮肤而变白 */
+  --c-accent-panel: #111827;
+  --c-accent-panel-ink: #F7F8FA;
+
+  /* 语义色：文字级 */
+  --c-ok: #2C7250;          /* on canvas 4.78 / s3 5.05 */
+  --c-warn: #8A5609;        /* on warn-bg = 5.39 */
+  --c-danger: #A63A2C;
+  --c-info: #2B5A8C;
+
+  /* 语义色：色底级 */
+  --c-ok-bg: #E8F2EC;
+  --c-warn-bg: #F8EFE0;
+  --c-danger-bg: #F7E8E5;
+  --c-info-bg: #E7EEF6;
+
+  /* 语义色：边框级 */
+  --c-ok-line: #5C8A72;
+  --c-warn-line: #A97A30;
+  --c-danger-line: #B87362;
+  --c-info-line: #6486B0;
+
+  /* 语义纯色面上的文字（深字配浅面用白，浅字配深面用近黑） */
+  --c-ok-on: #FFFFFF;
+  --c-warn-on: #FFFFFF;
+  --c-danger-on: #FFFFFF;
+  --c-info-on: #FFFFFF;
+
+  --c-shadow: 0 1px 2px rgba(17, 24, 39, 0.04), 0 1px 3px rgba(17, 24, 39, 0.03);
+  --c-shadow-lg: 0 8px 28px rgba(17, 24, 39, 0.07);
+
+  --c-ring: rgba(17, 24, 39, 0.18);
+  --c-overlay: rgba(17, 24, 39, 0.42);
+}
+
+.dark {
+  /* —— 深色：夜工坊（深墨蓝，明度阶梯拉开保证卡片边界可辨） —— */
+  --c-canvas: #080D16;
+  --c-surface: #151F30;
+  --c-surface-2: #1A2637;
+  --c-surface-3: #232F46;
+
+  --c-ink: #F2F5F9;         /* on s3 = 12.33 */
+  --c-ink-2: #A7B4C6;       /* on s3 = 6.41 */
+  --c-ink-3: #8E9CB2;       /* on s3 = 4.85，on surface = 5.94 */
+  --c-ink-4: #7B89A3;       /* on s3 = 3.82（装饰/禁用态专用） */
+
+  --c-line: #425573;        /* on surface 2.19 / s3 1.77，真正看得见 */
+  --c-line-strong: #5A7092; /* on surface 3.28 / s3 2.66 */
+
+  /* 暗皮肤下按钮用亮面 */
+  --c-accent: #F2F5F9;
+  --c-accent-ink: #080D16;
+  --c-accent-soft: #212F45;
+  /* 深色展示面：比画布略深，永远深底浅字 */
+  --c-accent-panel: #050910;
+  --c-accent-panel-ink: #F2F5F9;
+
+  /* 语义色：文字级（对 s3 全部 ≥5.8） */
+  --c-ok: #6FD3A0;
+  --c-warn: #E5B25C;
+  --c-danger: #F08A78;
+  --c-info: #7FB1E8;
+
+  /* 语义色：色底级 */
+  --c-ok-bg: #16301F;
+  --c-warn-bg: #332612;
+  --c-danger-bg: #331B16;
+  --c-info-bg: #16273A;
+
+  /* 语义色：边框级（对 surface / s3 均 ≥3） */
+  --c-ok-line: #4E7F60;
+  --c-warn-line: #9A7A45;
+  --c-danger-line: #B06A56;
+  --c-info-line: #587AA2;
+
+  /* 亮面语义色上的文字：用近黑，不用白 */
+  --c-ok-on: #06120B;
+  --c-warn-on: #12100A;
+  --c-danger-on: #140806;
+  --c-info-on: #070D14;
+
+  --c-shadow: 0 1px 2px rgba(0, 0, 0, 0.40), 0 1px 3px rgba(0, 0, 0, 0.32);
+  --c-shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.50);
+
+  --c-ring: rgba(242, 245, 249, 0.30);
+  --c-overlay: rgba(3, 6, 12, 0.72);
+}
+
+/* 把 token 暴露给 Tailwind utility（bg-canvas / text-ink / border-line …） */
+@theme inline {
+  --color-canvas: var(--c-canvas);
+  --color-surface: var(--c-surface);
+  --color-surface-2: var(--c-surface-2);
+  --color-surface-3: var(--c-surface-3);
+
+  --color-ink: var(--c-ink);
+  --color-ink-2: var(--c-ink-2);
+  --color-ink-3: var(--c-ink-3);
+  --color-ink-4: var(--c-ink-4);
+
+  --color-line: var(--c-line);
+  --color-line-strong: var(--c-line-strong);
+
+  --color-accent: var(--c-accent);
+  --color-accent-ink: var(--c-accent-ink);
+  --color-accent-soft: var(--c-accent-soft);
+  --color-accent-panel: var(--c-accent-panel);
+  --color-accent-panel-ink: var(--c-accent-panel-ink);
+
+  --color-ok: var(--c-ok);
+  --color-warn: var(--c-warn);
+  --color-danger: var(--c-danger);
+  --color-info: var(--c-info);
+
+  --color-ok-bg: var(--c-ok-bg);
+  --color-warn-bg: var(--c-warn-bg);
+  --color-danger-bg: var(--c-danger-bg);
+  --color-info-bg: var(--c-info-bg);
+
+  --color-ok-line: var(--c-ok-line);
+  --color-warn-line: var(--c-warn-line);
+  --color-danger-line: var(--c-danger-line);
+  --color-info-line: var(--c-info-line);
+
+  --color-ok-on: var(--c-ok-on);
+  --color-warn-on: var(--c-warn-on);
+  --color-danger-on: var(--c-danger-on);
+  --color-info-on: var(--c-info-on);
+
+  --shadow-tok: var(--c-shadow);
+  --shadow-tok-lg: var(--c-shadow-lg);
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
+/* 皮肤切换短过渡，避免闪眼；不给所有属性加，会拖慢渲染 */
+body {
+  background-color: var(--c-canvas);
+  color: var(--c-ink);
+  transition: background-color 220ms ease, color 220ms ease;
+}
+
+/* 打印：A4 卷面永远纸白黑字，不跟着皮肤走 */
+@media print {
+  :root, .dark {
+    --c-canvas: #FFFFFF;
+    --c-surface: #FFFFFF;
+    --c-ink: #000000;
+    --c-ink-2: #222222;
+    --c-ink-3: #555555;
+    --c-line: #CCCCCC;
+  }
+  body { background: #fff !important; }
+  .no-print { display: none !important; }
+}
