@@ -125,6 +125,62 @@ export interface LearningTask {
   customRewardPoints?: number;      // 家长手工调整后的积分
   material: LearningMaterial;
   submission?: Submission;
+  isDraft?: boolean;
+}
+
+/** GET /api/progress 的原始响应结构（字段与后端 snake_case 逐项对齐） */
+export interface ProgressSummary {
+  ok: boolean;
+  source: string;
+  child_id: string;
+  window: {
+    days: number;
+    start: string;
+    end: string;
+  };
+  active_days: string[];
+  kpi: {
+    active_day_count: number;
+    worksheet_count: number;
+    correct_rate: number;
+    correct_count: number;
+    graded_count: number;
+    active_kp_count: number;
+  };
+  knowledge_points: {
+    id: string;
+    title: string;
+    status: string;
+    status_key: string;
+    evidence_count: number;
+    last_tested_at: string;
+    trend: string;
+  }[];
+  error_patterns: {
+    pattern_id: string;
+    name: string;
+    count: number;
+  }[];
+  last_submission: {
+    submission_id: string;
+    task_id: string;
+    worksheet_id: string;
+    uploaded_at: string;
+    status: string;
+    confidence: number;
+    graded_count: number;
+    correct_count: number;
+    wrong_items: WrongItem[];
+  } | null;
+}
+
+export interface WrongItem {
+  question_id: string;
+  expression: string;
+  child_answer: string;
+  expected: string;
+  err_pattern_id: string;
+  err_note: string;
 }
 
 export interface PointTransaction {

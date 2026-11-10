@@ -12,7 +12,8 @@ import {
   Submission,
   QuestionSubmissionResult,
   PointTransaction,
-  CustomTaskRequest
+  CustomTaskRequest,
+  ProgressSummary
 } from '../types';
 import {
   INITIAL_CHILD_PROFILE,
@@ -232,10 +233,61 @@ class ApiService {
 
   public async getTodayTask(): Promise<LearningTask> {
     if (this.isHermesMode()) {
-      const r = await this.http<{ ok: boolean; tasks: any[] }>('/api/tasks/today');
+      const r = await this.http<{ ok: boolean; date?: string; tasks: any[]; draft?: any }>('/api/tasks/today');
       const t = (r.tasks || [])[0];
       if (!t) {
-        throw new HermesUnavailableError('/api/tasks/today', '飞书中没有今日任务，请先发布今日练习卷');
+        const draft = r.draft;
+        const draftQuestions = Array.isArray(draft?.worksheet?.questions) ? draft.worksheet.questions : [];
+        if (!draft || draftQuestions.length === 0) {
+          throw new HermesUnavailableError('/api/tasks/today', '飞书中没有今日任务，请先发布今日练习卷');
+        }
+
+        const title = String(draft.goal || '今日练习');
+        const childId = String(draft.child_id || this.profile.childId || '');
+        const draftFrontend = {
+          worksheet_id: draft.worksheet.worksheet_id,
+          questions_frontend: draftQuestions.map((q: any) => ({
+            questionId: q.question_id,
+            index: q.index,
+            section: 'speed_arithmetic',
+            sectionTitle: '一、口算速算达人',
+            type: 'addition_carry',
+            numA: q.num_a,
+            numB: q.num_b,
+            standardAnswer: q.expected,
+            promptText: q.prompt,
+            points: 1,
+            thinkingHint: undefined
+          }))
+        };
+        const material = this.mapMaterial(draftFrontend, String(draft.task_id), childId, title);
+        if (draft.worksheet.qr_payload) {
+          material.qrCodeUrl = typeof draft.worksheet.qr_payload === 'string'
+            ? draft.worksheet.qr_payload
+            : JSON.stringify(draft.worksheet.qr_payload);
+        }
+
+        this.currentTask = {
+          taskId: String(draft.task_id),
+          childId,
+          title,
+          subject: 'Math',
+          generationMode: 'plan',
+          knowledgePointId: String(draft.knowledge_point_id || 'MATH-G1-ADD-CARRY-001'),
+          knowledgePointTitle: '20 以内进位加法（凑十法）',
+          taskType: 'paper_pencil',
+          status: 'pending_print',
+          assignedDate: String(draft.date || r.date || new Date().toISOString().slice(0, 10)),
+          estimatedMinutes: Number(draft.est_minutes || 10),
+          recommendReason: String(draft.description || ''),
+          defaultRewardPoints: material.totalRewardPoints,
+          customRewardPoints: material.totalRewardPoints,
+          material,
+          isDraft: true
+        };
+
+        this.saveState();
+        return { ...this.currentTask };
       }
       const mat = (t.materials || [])[0];
       if (!mat?.worksheet_id) {
@@ -333,6 +385,16 @@ class ApiService {
       return [...this.transactions];
     }
     return [...this.transactions];
+  }
+
+  public async fetchProgress(days: number = 30): Promise<ProgressSummary> {
+    if (!this.isHermesMode()) {
+      throw new HermesUnavailableError(
+        '/api/progress',
+        '当前为沙箱模式，无法读取飞书真实进度'
+      );
+    }
+    return this.http<ProgressSummary>(`/api/progress?days=${days}`);
   }
 
   /**

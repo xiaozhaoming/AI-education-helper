@@ -187,11 +187,50 @@ body {
   :root, .dark {
     --c-canvas: #FFFFFF;
     --c-surface: #FFFFFF;
-    --c-ink: #000000;
-    --c-ink-2: #222222;
-    --c-ink-3: #555555;
-    --c-line: #CCCCCC;
+    --c-surface-2: #F8F8F4;
+    --c-surface-3: #F0F0E9;
+
+    --c-ink: #111827;
+    --c-ink-2: #4B5563;
+    --c-ink-3: #585F71;
+    --c-ink-4: #5F6775;
+
+    --c-line: #BEBEAE;
+    --c-line-strong: #AAAA98;
+
+    --c-accent: #111827;
+    --c-accent-ink: #FFFFFF;
+    --c-accent-soft: #EDEDE8;
+    --c-accent-panel: #111827;
+    --c-accent-panel-ink: #F7F8FA;
+
+    --c-ok: #2C7250;
+    --c-ok-bg: #E8F2EC;
+    --c-ok-line: #5C8A72;
+    --c-ok-on: #FFFFFF;
+
+    --c-warn: #8A5609;
+    --c-warn-bg: #F8EFE0;
+    --c-warn-line: #A97A30;
+    --c-warn-on: #FFFFFF;
+
+    --c-danger: #A63A2C;
+    --c-danger-bg: #F7E8E5;
+    --c-danger-line: #B87362;
+    --c-danger-on: #FFFFFF;
+
+    --c-info: #2B5A8C;
+    --c-info-bg: #E7EEF6;
+    --c-info-line: #6486B0;
+    --c-info-on: #FFFFFF;
+
+    --c-shadow: none;
+    --c-shadow-lg: none;
+    --c-ring: rgba(17, 24, 39, 0.18);
+    --c-overlay: rgba(17, 24, 39, 0.42);
   }
-  body { background: #fff !important; }
+  html { color-scheme: light !important; }
+  body { background: #fff !important; color: #111827 !important; }
   .no-print { display: none !important; }
+  .shadow-tok, .shadow-tok-lg { box-shadow: none !important; }
 }

@@ -15,7 +15,7 @@ interface TopNavBarProps {
   currentTab: NavTab;
   onSelectTab: (tab: NavTab) => void;
   profile: ChildProfile;
-  taskStatus: TaskStatus;
+  taskStatus?: TaskStatus;
   onOpenDevModal: () => void;
   colorScheme: ColorScheme;
   onToggleColorScheme: () => void;

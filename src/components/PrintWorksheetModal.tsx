@@ -19,6 +19,7 @@ interface PrintWorksheetModalProps {
   material: LearningMaterial;
   profile: ChildProfile;
   onPrinted: () => void;
+  isExportingImage: boolean;
 }
 
 export const PrintWorksheetModal: React.FC<PrintWorksheetModalProps> = ({
@@ -26,7 +27,8 @@ export const PrintWorksheetModal: React.FC<PrintWorksheetModalProps> = ({
   onClose,
   material,
   profile,
-  onPrinted
+  onPrinted,
+  isExportingImage
 }) => {
   const [activeTab, setActiveTab] = useState<'worksheet' | 'answerKey'>('worksheet');
   const [previewQuestions, setPreviewQuestions] = useState<PreviewQuestion[]>(
@@ -177,7 +179,11 @@ export const PrintWorksheetModal: React.FC<PrintWorksheetModalProps> = ({
         <div className="p-4 sm:p-8 overflow-y-auto bg-surface-3/50 print:bg-surface print:p-0">
           {activeTab === 'worksheet' ? (
             /* 标准 A4 真实试卷布局 */
-            <div className="max-w-[210mm] min-h-[297mm] mx-auto bg-surface p-8 sm:p-10 shadow-md border border-line/80 print:shadow-none print:border-none print:p-6 print:m-0 space-y-5 text-ink font-sans">
+            <div
+              data-export-root="worksheet"
+              data-export-worksheet-id={activeWorksheetId}
+              className="max-w-[210mm] min-h-[297mm] mx-auto bg-surface p-8 sm:p-10 shadow-md border border-line/80 print:shadow-none print:border-none print:p-6 print:m-0 space-y-5 text-ink font-sans"
+            >
               {/* 页眉与二维码防伪标识 */}
               <div className="flex items-start justify-between border-b-2 border-black pb-3">
                 <div className="space-y-1">
@@ -321,7 +327,11 @@ export const PrintWorksheetModal: React.FC<PrintWorksheetModalProps> = ({
             </div>
           ) : (
             /* 家长独立标准答案版 */
-            <div className="max-w-[210mm] mx-auto bg-surface p-8 sm:p-10 shadow-md border border-line rounded-lg space-y-6 text-ink">
+            <div
+              data-export-root="answerKey"
+              data-export-worksheet-id={activeWorksheetId}
+              className="max-w-[210mm] min-h-[297mm] mx-auto bg-surface p-8 sm:p-10 shadow-md border border-line rounded-lg space-y-6 text-ink print:shadow-none print:border-none print:rounded-none print:p-6 print:m-0"
+            >
               <div className="flex items-center justify-between border-b pb-4">
                 <div>
                   <div className="text-xs font-bold text-ok uppercase">
@@ -396,6 +406,14 @@ export const PrintWorksheetModal: React.FC<PrintWorksheetModalProps> = ({
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-[60] bg-surface text-ink px-5 py-3.5 rounded-lg shadow-xl text-xs font-medium max-w-md border border-line print:hidden">
           {toastMessage}
+        </div>
+      )}
+      {isExportingImage && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-accent-panel/70 backdrop-blur-sm print:hidden">
+          <div className="flex items-center gap-3 rounded-xl border border-line bg-surface px-6 py-4 text-sm font-bold text-ink shadow-xl">
+            <RefreshCw className="w-5 h-5 animate-spin text-warn" />
+            正在导出 PNG 2 倍高清图片…
+          </div>
         </div>
       )}
     </div>

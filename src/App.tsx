@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import html2canvas from 'html2canvas';
 import { TopNavBar, NavTab } from './components/TopNavBar';
 import { DailyTaskView } from './components/DailyTaskView';
 import { PrintWorksheetModal } from './components/PrintWorksheetModal';
@@ -13,7 +14,217 @@ import { PointsLedgerView } from './components/PointsLedgerView';
 import { CustomTaskModal } from './components/CustomTaskModal';
 import { HermesDevModal } from './components/HermesDevModal';
 import { apiClient, HermesConnectionConfig } from './services/apiClient';
-import { ChildProfile, LearningTask, KnowledgePointNode, PointTransaction, CustomTaskRequest, ColorScheme } from './types';
+import { ChildProfile, LearningTask, KnowledgePointNode, PointTransaction, CustomTaskRequest, ColorScheme, ProgressSummary } from './types';
+
+const PRINT_TOKENS: Record<string, string> = {
+  '--c-canvas': '#FFFFFF',
+  '--c-surface': '#FFFFFF',
+  '--c-surface-2': '#F8F8F4',
+  '--c-surface-3': '#F0F0E9',
+  '--c-ink': '#111827',
+  '--c-ink-2': '#4B5563',
+  '--c-ink-3': '#585F71',
+  '--c-ink-4': '#5F6775',
+  '--c-line': '#BEBEAE',
+  '--c-line-strong': '#AAAA98',
+  '--c-accent': '#111827',
+  '--c-accent-ink': '#FFFFFF',
+  '--c-accent-soft': '#EDEDE8',
+  '--c-accent-panel': '#111827',
+  '--c-accent-panel-ink': '#F7F8FA',
+  '--c-ok': '#2C7250',
+  '--c-ok-bg': '#E8F2EC',
+  '--c-ok-line': '#5C8A72',
+  '--c-ok-on': '#FFFFFF',
+  '--c-warn': '#8A5609',
+  '--c-warn-bg': '#F8EFE0',
+  '--c-warn-line': '#A97A30',
+  '--c-warn-on': '#FFFFFF',
+  '--c-danger': '#A63A2C',
+  '--c-danger-bg': '#F7E8E5',
+  '--c-danger-line': '#B87362',
+  '--c-danger-on': '#FFFFFF',
+  '--c-info': '#2B5A8C',
+  '--c-info-bg': '#E7EEF6',
+  '--c-info-line': '#6486B0',
+  '--c-info-on': '#FFFFFF',
+  '--c-shadow': 'none',
+  '--c-shadow-lg': 'none',
+  '--c-ring': 'rgba(17, 24, 39, 0.18)',
+  '--c-overlay': 'rgba(17, 24, 39, 0.42)',
+};
+
+const COLOR_PROPS = [
+  'color', 'background-color', 'border-top-color', 'border-right-color',
+  'border-bottom-color', 'border-left-color', 'outline-color',
+  'text-decoration-color', 'fill', 'stroke', 'caret-color',
+] as const;
+
+const clampUnit = (value: number) => Math.min(1, Math.max(0, value));
+
+/** 浏览器 Canvas 无法解析现代色彩函数时，把 oklab/oklch 近似换算成 sRGB。 */
+const approximateToSrgb = (modern: string): string | null => {
+  const match = modern.match(/^(oklab|oklch)\((.*)\)$/i);
+  if (!match) return null;
+
+  const [channelPart, alphaPart] = match[2].split('/');
+  const channels = channelPart.trim().split(/\s+/);
+  if (channels.length !== 3) return null;
+
+  const parseChannel = (token: string, percentageScale: number) => {
+    const raw = Number.parseFloat(token);
+    return token.includes('%') ? raw / 100 * percentageScale : raw;
+  };
+  const parseHue = (token: string) => {
+    const raw = Number.parseFloat(token);
+    if (token.endsWith('rad')) return raw;
+    if (token.endsWith('turn')) return raw * 2 * Math.PI;
+    if (token.endsWith('grad')) return raw * Math.PI / 200;
+    return raw * Math.PI / 180;
+  };
+
+  const lightness = parseChannel(channels[0], 1);
+  let a: number;
+  let b: number;
+  if (match[1].toLowerCase() === 'oklch') {
+    const chroma = parseChannel(channels[1], 0.4);
+    const hue = parseHue(channels[2]);
+    a = chroma * Math.cos(hue);
+    b = chroma * Math.sin(hue);
+  } else {
+    a = parseChannel(channels[1], 0.4);
+    b = parseChannel(channels[2], 0.4);
+  }
+  if (![lightness, a, b].every(Number.isFinite)) return null;
+
+  const l_ = lightness + 0.3963377774 * a + 0.2158037573 * b;
+  const m_ = lightness - 0.1055613458 * a - 0.0638541728 * b;
+  const s_ = lightness - 0.0894841775 * a - 1.2914855480 * b;
+  const l = l_ ** 3;
+  const m = m_ ** 3;
+  const s = s_ ** 3;
+  const linearR = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+  const linearG = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+  const linearB = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
+  const toSrgb = (value: number) => {
+    const linear = clampUnit(value);
+    const channel = linear <= 0.0031308
+      ? 12.92 * linear
+      : 1.055 * linear ** (1 / 2.4) - 0.055;
+    return Math.round(clampUnit(channel) * 255);
+  };
+
+  let alpha = 1;
+  if (alphaPart) {
+    const rawAlpha = alphaPart.trim();
+    const parsed = Number.parseFloat(rawAlpha);
+    alpha = clampUnit(rawAlpha.includes('%') ? parsed / 100 : parsed);
+  }
+  if (!Number.isFinite(alpha)) return null;
+
+  return `rgba(${toSrgb(linearR)}, ${toSrgb(linearG)}, ${toSrgb(linearB)}, ${alpha})`;
+};
+
+/** 用 1×1 Canvas 让浏览器归一化现代颜色，并通过像素采样保留 alpha。 */
+const toRgba = (modern: string): string => {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 1;
+  const context = canvas.getContext('2d', { willReadFrequently: true })!;
+  const sentinel = '#000';
+
+  context.fillStyle = sentinel;
+  const sentinelValue = context.fillStyle;
+  context.fillStyle = modern;
+
+  if (context.fillStyle === sentinelValue) {
+    const fallback = approximateToSrgb(modern);
+    if (!fallback) {
+      console.warn(`无法归一化现代颜色：${modern}`);
+      throw new Error(`浏览器无法解析颜色 ${modern}`);
+    }
+    console.warn(`Canvas 无法解析现代颜色，已近似换算：${modern} → ${fallback}`);
+    context.fillStyle = fallback;
+  }
+
+  context.clearRect(0, 0, 1, 1);
+  context.fillRect(0, 0, 1, 1);
+  const [r, g, b, a] = context.getImageData(0, 0, 1, 1).data;
+  return `rgba(${r}, ${g}, ${b}, ${Number((a / 255).toFixed(3))})`;
+};
+
+const normalizeModernColors = (root: HTMLElement) => {
+  const originals: Array<{ el: HTMLElement; prop: string; value: string; priority: string }> = [];
+  const isModern = (value: string) => /oklab|oklch|color\(/i.test(value);
+  const restore = () => {
+    originals.forEach(({ el, prop, value, priority }) => {
+      if (value) {
+        el.style.setProperty(prop, value, priority);
+      } else {
+        el.style.removeProperty(prop);
+      }
+    });
+  };
+
+  const visit = (el: HTMLElement) => {
+    const computed = getComputedStyle(el);
+    for (const prop of COLOR_PROPS) {
+      const value = computed.getPropertyValue(prop);
+      if (value && isModern(value)) {
+        originals.push({
+          el,
+          prop,
+          value: el.style.getPropertyValue(prop),
+          priority: el.style.getPropertyPriority(prop),
+        });
+        el.style.setProperty(prop, toRgba(value), 'important');
+      }
+    }
+  };
+
+  try {
+    visit(root);
+    root.querySelectorAll<HTMLElement>('*').forEach(visit);
+  } catch (error) {
+    restore();
+    throw error;
+  }
+
+  return restore;
+};
+
+/**
+ * html2canvas 不解析 @media print，卷面上的 print:border-none 对图片导出无效。
+ * 导出前把根容器的边框/圆角/阴影内联清零，导出后由调用方在 finally 还原。
+ * 只改传入的这个根节点，不碰全局 documentElement。
+ */
+const stripExportBorder = (root: HTMLElement): (() => void) => {
+  const target = root as HTMLElement;
+  const prev = {
+    border: target.style.border,
+    borderRadius: target.style.borderRadius,
+    boxShadow: target.style.boxShadow,
+  };
+  target.style.border = 'none';
+  target.style.borderRadius = '0';
+  target.style.boxShadow = 'none';
+  return () => {
+    target.style.border = prev.border;
+    target.style.borderRadius = prev.borderRadius;
+    target.style.boxShadow = prev.boxShadow;
+  };
+};
+
+const waitForExportRoot = async (): Promise<HTMLElement> => {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    const exportRoot = document.querySelector<HTMLElement>('[data-export-root]');
+    if (exportRoot) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      return document.querySelector<HTMLElement>('[data-export-root]') ?? exportRoot;
+    }
+  }
+  throw new Error('未找到 A4 卷面');
+};
 
 export default function App() {
   const [colorScheme, setColorScheme] = useState<ColorScheme>(() => {
@@ -25,9 +236,13 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState<NavTab>('task');
   const [profile, setProfile] = useState<ChildProfile | null>(null);
   const [task, setTask] = useState<LearningTask | null>(null);
+  const [progress, setProgress] = useState<ProgressSummary | null>(null);
+  const [progressError, setProgressError] = useState<string | null>(null);
+  const [progressLoading, setProgressLoading] = useState(true);
   const [knowledgePoints, setKnowledgePoints] = useState<KnowledgePointNode[]>([]);
   const [transactions, setTransactions] = useState<PointTransaction[]>([]);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [isExportingImage, setIsExportingImage] = useState(false);
   const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
   const [isDevModalOpen, setIsDevModalOpen] = useState(false);
   const [config, setConfig] = useState<HermesConnectionConfig>(apiClient.getConfig());
@@ -67,11 +282,14 @@ export default function App() {
     const subjectToUse = nextSubject ?? subject;
     try {
       const p = await apiClient.getChildProfile();
-      const t = await apiClient.getTodayTask();
+      setProfile(p);
+
+      // 今日任务缺失只影响模块三，不能阻断孩子档案与学习进度。
+      const t = await apiClient.getTodayTask().catch(() => null);
+      setTask(t);
+
       const kp = await apiClient.getKnowledgePoints(`?grade=${gradeToUse}&subject=${subjectToUse}`);
       const tx = await apiClient.getPointTransactions();
-      setProfile(p);
-      setTask(t);
       setKnowledgePoints(kp);
       setTransactions(tx);
       setLoadError(null);
@@ -85,6 +303,21 @@ export default function App() {
       setKnowledgePoints([]);
       setTransactions([]);
       return { ok: false as const, error: msg };
+    }
+  };
+
+  /** 进度接口独立请求；失败只影响首页模块一、二，不用任何假数据兜底 */
+  const refreshProgress = async () => {
+    setProgressLoading(true);
+    try {
+      const data = await apiClient.fetchProgress(30);
+      setProgress(data);
+      setProgressError(null);
+    } catch (e) {
+      setProgress(null);
+      setProgressError((e as Error).message || '未知错误');
+    } finally {
+      setProgressLoading(false);
     }
   };
 
@@ -116,6 +349,7 @@ export default function App() {
         }
       }
       await refreshData();
+      await refreshProgress();
     })();
   }, []);
 
@@ -156,6 +390,10 @@ export default function App() {
       setCurrentTab('review');
     }
   };
+
+  // v1.6.3 的「批改与复核」页将重新接入上传流程；函数本体保留，首页不再传参。
+  void handleSimulateUpload;
+  void handleRealUpload;
 
   const handleConfirmParentCorrection = async (
     questionId: string,
@@ -208,6 +446,83 @@ export default function App() {
     showToast(`🖨️ 系统打印已触发！请交由${profile?.name || '孩子'}脱离屏幕用铅笔独立作答。`);
   };
 
+  const handleExportImage = async () => {
+    if (!task) {
+      showToast('图片导出失败：暂无练习卷');
+      return;
+    }
+    if (isExportingImage) return;
+
+    setIsExportingImage(true);
+    showToast('🖼️ 正在生成 PNG 2 倍高清图片…');
+
+    try {
+      setIsPrintModalOpen(true);
+      const exportRoot = await waitForExportRoot();
+      const worksheetId = exportRoot.dataset.exportWorksheetId || task.material.worksheetId;
+      const root = document.documentElement;
+      const previousTokenStyles = new Map<string, { value: string; priority: string }>();
+
+      Object.entries(PRINT_TOKENS).forEach(([token, value]) => {
+        previousTokenStyles.set(token, {
+          value: root.style.getPropertyValue(token),
+          priority: root.style.getPropertyPriority(token),
+        });
+        root.style.setProperty(token, value);
+      });
+
+      try {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        const restoreColors = normalizeModernColors(exportRoot);
+        // 导出前临时去掉卡片边框与圆角：html2canvas 不读 @media print，
+        // 卷面上的 print:border-none 对图片导出无效，实测导出图四周有 2px 灰边
+        const restoreBorder = stripExportBorder(exportRoot);
+        let canvas: HTMLCanvasElement;
+        try {
+          canvas = await html2canvas(exportRoot, {
+            backgroundColor: '#FFFFFF',
+            scale: 2,
+            useCORS: true,
+            logging: false,
+          });
+        } finally {
+          restoreColors();
+          restoreBorder();
+        }
+        const imageBlob = await new Promise<Blob | null>((resolve) => {
+          canvas.toBlob(resolve, 'image/png');
+        });
+        if (!imageBlob) throw new Error('Canvas 转 PNG 失败');
+
+        const downloadUrl = URL.createObjectURL(imageBlob);
+        try {
+          const downloadLink = document.createElement('a');
+          downloadLink.href = downloadUrl;
+          downloadLink.download = `练习卷-${worksheetId}.png`;
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          downloadLink.remove();
+        } finally {
+          URL.revokeObjectURL(downloadUrl);
+        }
+        showToast('🖼️ PNG 2 倍高清图片已导出');
+      } finally {
+        previousTokenStyles.forEach(({ value, priority }, token) => {
+          if (value) {
+            root.style.setProperty(token, value, priority);
+          } else {
+            root.style.removeProperty(token);
+          }
+        });
+      }
+    } catch (e) {
+      const reason = (e as Error).message || '未知错误';
+      showToast(`图片导出失败：${reason}`);
+    } finally {
+      setIsExportingImage(false);
+    }
+  };
+
   const handleUpdateConfig = (newCfg: Partial<HermesConnectionConfig>) => {
     apiClient.updateConfig(newCfg);
     setConfig(apiClient.getConfig());
@@ -220,13 +535,13 @@ export default function App() {
     showToast('🔄 已重置为出厂演示状态');
   };
 
-  if (!profile || !task) {
+  if (!profile) {
     return (
       <div className="min-h-screen bg-surface-2 flex flex-col items-center justify-center px-6 text-center gap-4">
         {loadError ? (
           <>
             <div className="text-3xl">🔌</div>
-            <div className="text-ink font-bold text-base">无法连接本地 Hermes 服务</div>
+            <div className="text-ink font-bold text-base">无法读取孩子档案</div>
             <div className="text-ink-3 text-xs max-w-xl leading-relaxed font-mono break-all">
               {loadError}
             </div>
@@ -269,7 +584,7 @@ export default function App() {
         currentTab={currentTab}
         onSelectTab={setCurrentTab}
         profile={profile}
-        taskStatus={task.status}
+        taskStatus={task?.status}
         onOpenDevModal={() => setIsDevModalOpen(true)}
         colorScheme={colorScheme}
         onToggleColorScheme={handleToggleColorScheme}
@@ -284,18 +599,20 @@ export default function App() {
           <DailyTaskView
             profile={profile}
             task={task}
+            progress={progress}
+            progressError={progressError}
+            progressLoading={progressLoading}
+            onRetryProgress={refreshProgress}
             onOpenPrintModal={() => setIsPrintModalOpen(true)}
             onGoToReview={() => setCurrentTab('review')}
-            onSimulateUpload={handleSimulateUpload}
-            onRealUpload={handleRealUpload}
-            isHermesMode={config.mode === 'hermes_local'}
+            onExportImage={handleExportImage}
             onGeneratePlanTask={handleGeneratePlanTask}
             onOpenCustomModal={() => setIsCustomModalOpen(true)}
             onUpdateRewardPoints={handleUpdateRewardPoints}
           />
         )}
 
-        {currentTab === 'review' && (
+        {currentTab === 'review' && task && (
           <GradingReviewView
             task={task}
             onBackToTask={() => setCurrentTab('task')}
@@ -323,13 +640,16 @@ export default function App() {
       </footer>
 
       {/* A4 打印模态窗口 */}
-      <PrintWorksheetModal
-        isOpen={isPrintModalOpen}
-        onClose={() => setIsPrintModalOpen(false)}
-        material={task.material}
-        profile={profile}
-        onPrinted={handlePrinted}
-      />
+      {task && (
+        <PrintWorksheetModal
+          isOpen={isPrintModalOpen}
+          onClose={() => setIsPrintModalOpen(false)}
+          material={task.material}
+          profile={profile}
+          onPrinted={handlePrinted}
+          isExportingImage={isExportingImage}
+        />
+      )}
 
       {/* 临时定制生成模态窗口 */}
       <CustomTaskModal
