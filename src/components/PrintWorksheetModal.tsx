@@ -3,10 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
-import { X, Printer, CheckCircle2, ShieldAlert } from 'lucide-react';
-import { LearningMaterial, ChildProfile } from '../types';
+import React, { useEffect, useState } from 'react';
+import { X, Printer, CheckCircle2, ShieldAlert, RefreshCw } from 'lucide-react';
+import { LearningMaterial, ChildProfile, Question } from '../types';
 import { generateQrMatrixSvg } from '../utils/mathGenerator';
+
+type PreviewQuestion = Omit<Question, 'type'> & {
+  type: Question['type'] | 'fill_blank';
+  qtype?: 'direct' | 'fill_blank';
+};
 
 interface PrintWorksheetModalProps {
   isOpen: boolean;
@@ -24,8 +29,73 @@ export const PrintWorksheetModal: React.FC<PrintWorksheetModalProps> = ({
   onPrinted
 }) => {
   const [activeTab, setActiveTab] = useState<'worksheet' | 'answerKey'>('worksheet');
+  const [previewQuestions, setPreviewQuestions] = useState<PreviewQuestion[]>(
+    material.questions
+  );
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) setPreviewQuestions(material.questions);
+  }, [isOpen, material.questions]);
+
+  useEffect(() => {
+    if (!toastMessage) return;
+    const timer = setTimeout(() => setToastMessage(null), 5000);
+    return () => clearTimeout(timer);
+  }, [toastMessage]);
 
   if (!isOpen) return null;
+
+  const handleGenerate = async () => {
+    setIsGenerating(true);
+    try {
+      const res = await fetch('http://localhost:8000/api/worksheet/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          child_id: material.childId,
+          knowledge_point_id: material.knowledgePointId,
+          seed: null,
+          avoid_last_n: 3
+        })
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        setToastMessage(data?.message || `换题失败：HTTP ${res.status}`);
+        return;
+      }
+      if (!Array.isArray(data.questions) || data.questions.length === 0) {
+        setToastMessage('换题失败：后端未返回题目');
+        return;
+      }
+      setPreviewQuestions(data.questions.map((q: any, i: number): PreviewQuestion => {
+        const isFillBlank = q.qtype === 'fill_blank';
+        const a = Number(isFillBlank ? q.known_addend : q.num_a);
+        const b = Number(isFillBlank ? q.unknown_addend : q.num_b);
+        return {
+          questionId: String(q.question_id || `Q${String(i + 1).padStart(2, '0')}`),
+          index: Number(q.index ?? i + 1),
+          section: 'speed_arithmetic',
+          sectionTitle: '一、口算速算达人',
+          type: isFillBlank ? 'fill_blank' : 'addition_carry',
+          qtype: isFillBlank ? 'fill_blank' : 'direct',
+          numA: a,
+          numB: b,
+          operator: '+',
+          standardAnswer: Number(q.expected),
+          promptText: isFillBlank ? String(q.prompt) : `${a} + ${b} = `,
+          points: 1
+        };
+      }));
+      setActiveTab('worksheet');
+      setToastMessage(`已换一批题 · seed ${data.seed}`);
+    } catch (e) {
+      setToastMessage((e as Error).message || '换题失败');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const handlePrint = () => {
     onPrinted();
@@ -35,10 +105,10 @@ export const PrintWorksheetModal: React.FC<PrintWorksheetModalProps> = ({
   const qrSvgHtml = generateQrMatrixSvg(material.qrCodeUrl, 68);
 
   // 分题型组织各模块
-  const speedQuestions = material.questions.filter(q => q.section === 'speed_arithmetic');
-  const compareQuestions = material.questions.filter(q => q.section === 'comparison');
-  const splitQuestions = material.questions.filter(q => q.section === 'make_ten_split');
-  const wordQuestions = material.questions.filter(q => q.section === 'word_problem');
+  const speedQuestions = previewQuestions.filter(q => q.section === 'speed_arithmetic');
+  const compareQuestions = previewQuestions.filter(q => q.section === 'comparison');
+  const splitQuestions = previewQuestions.filter(q => q.section === 'make_ten_split');
+  const wordQuestions = previewQuestions.filter(q => q.section === 'word_problem');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-surface/60 backdrop-blur-xs overflow-y-auto print:p-0 print:bg-surface print:static">
@@ -47,7 +117,7 @@ export const PrintWorksheetModal: React.FC<PrintWorksheetModalProps> = ({
         <div className="flex items-center justify-between px-6 py-4 border-b border-line bg-surface-2 print:hidden shrink-0">
           <div className="flex items-center gap-3">
             <span className="font-bold text-ink text-sm">
-              真实试卷标准排版预览（共 {material.questions.length} 题）
+              真实试卷标准排版预览（共 {previewQuestions.length} 题）
             </span>
             <div className="flex items-center gap-1 p-1 bg-surface-3/80 rounded-lg text-xs">
               <button
@@ -74,6 +144,14 @@ export const PrintWorksheetModal: React.FC<PrintWorksheetModalProps> = ({
           </div>
 
           <div className="flex items-center gap-3">
+            <button
+              onClick={handleGenerate}
+              disabled={isGenerating}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border border-line-strong bg-surface text-ink hover:bg-surface-3 disabled:opacity-60 transition-colors"
+            >
+              <RefreshCw className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} />
+              <span>{isGenerating ? '生成中…' : '换一批题'}</span>
+            </button>
             <button
               onClick={handlePrint}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-warn hover:bg-warn-line text-warn-on text-xs font-bold shadow-tok transition-colors"
@@ -306,6 +384,11 @@ export const PrintWorksheetModal: React.FC<PrintWorksheetModalProps> = ({
           )}
         </div>
       </div>
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-[60] bg-surface text-ink px-5 py-3.5 rounded-lg shadow-xl text-xs font-medium max-w-md border border-line print:hidden">
+          {toastMessage}
+        </div>
+      )}
     </div>
   );
 };
